@@ -58,14 +58,16 @@ static
 void
 ssl_startup(void)
 {
-	pthread_mutex_lock(&ssl_lock);
 	if (!ssl_inited) {
-		SSL_library_init();
-		SSL_load_error_strings();
+		pthread_mutex_lock(&ssl_lock);
+		if (!ssl_inited) {
+			SSL_library_init();
+			SSL_load_error_strings();
 
-		ssl_inited = true;
+			ssl_inited = true;
+		}
+		pthread_mutex_unlock(&ssl_lock);
 	}
-	pthread_mutex_unlock(&ssl_lock);
 }
 
 SSL *
