@@ -389,18 +389,15 @@ decode_nibble(char n)
 	return n - 'A' + 10;
 }
 
-inline static char
-encode_nibble(char n)
-{
-	return n > 9 ? n + 'a' - 10 : n + '0';
-}
-
+static unsigned char
+encode_chars[] = {0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+                  0x38, 0x39, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46};
 inline static void
-encode_byte(char dst[3], char n)
+encode_byte(char dst[3], unsigned char n)
 {
 	*dst++ = '%';
-	*dst++ = encode_nibble(n >> 4);
-	*dst = encode_nibble(n & 15);
+	*dst++ = encode_chars[n >> 4];
+	*dst = encode_chars[n & 15];
 }
 
 /* Decode%20a%20file%20name */
@@ -427,19 +424,39 @@ void
 http_encode(char *s, size_t len)
 {
 	char t[MAX_STRING];
+    char ch = 0;
 	unsigned i, j;
 
-	for (i = j = 0; s[i] && j < sizeof(t) - 1; i++, j++) {
-		t[j] = s[i];
-		if (s[i] <= 0x20 || s[i] >= 0x7f) {
-			/* Fix buffer overflow */
+	for (i = j = 0; i < len && j < sizeof(t) - 1 && (ch = s[i]); i++, j++) {
+        if (ch == 0x2a /* '*' */||
+                ch == 0x25 /* '%' */ ||
+                ch == 0x5f /* '_' */ ||
+                (ch - 0x2d < 3 && ch >= 0x2d) /* '-','.','/' */ ||
+                (ch - 0x30 < 10 && ch >= 0x30) /* '0' ~ '9' */||
+                (ch - 0x41 < 26 && ch >= 0x41) /* 'A' ~ 'Z' */||
+                (ch - 0x61 < 26 && ch >= 0x61 /* 'a' ~ 'z' */))
+        {
+            t[j] = ch;
+        }
+        else
+        {
 			if (j >= sizeof(t) - 3) {
 				break;
 			}
 
-			encode_byte(t + j, s[i]);
-			j += 2;
-		}
+            if(ch == 0x20)
+            {
+                t[j] = '%';
+                t[j+1] = '2';
+                t[j+2] = '0';
+            }
+            else
+            {
+                encode_byte(t + j, (unsigned char)ch);
+            }
+
+            j += 2;
+        }
 	}
 	t[j] = 0;
 
